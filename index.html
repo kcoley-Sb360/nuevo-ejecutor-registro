@@ -201,6 +201,9 @@ input.error, textarea.error {
 }
 .error-msg.show { display: block; }
 
+.idioma-otro { display: none; margin-top: 10px; }
+.idioma-otro.show { display: block; }
+
 textarea { min-height: 130px; }
 
 /* Dynamic bullet list */
@@ -463,6 +466,12 @@ textarea { min-height: 130px; }
         <textarea id="perfil" placeholder="Describe tu experiencia, trayectoria y perfil profesional..." rows="8"></textarea>
         <div class="error-msg" id="err-perfil">Por favor escribe tu presentación profesional.</div>
       </div>
+      <div class="field">
+        <label>¿Qué idiomas domina profesionalmente? <span class="req">*</span></label>
+        <div class="chip-grid" id="idiomas-chips"></div>
+        <input type="text" id="idioma-otro" class="idioma-otro" placeholder="Especifica el idioma">
+        <div class="error-msg" id="err-idiomas">Selecciona al menos un idioma. Si eliges "Otro", especifícalo.</div>
+      </div>
       <div class="nav-row">
         <button class="btn btn-back" onclick="goBack(2)">‹ Anterior</button>
         <button class="btn btn-next" onclick="goNext(2)">Siguiente ›</button>
@@ -630,6 +639,8 @@ const TAMANO_OPTS = [
   'Multinacional','Regional','Gran empresa nacional','PYME','Microempresa','Startup'
 ];
 
+const IDIOMAS_OPTS = ['Español', 'Inglés', 'Francés', 'Italiano', 'Otro'];
+
 const WHATSAPP_CODES = [
   { country: 'Panamá',                   code: '+507' },
   { country: 'Argentina',                code: '+54'  },
@@ -704,6 +715,13 @@ function toggleChip(chip, containerId, maxSelect) {
       c.classList.toggle('disabled', n >= 7);
     });
   }
+  // Show/hide free-text input when "Otro" is toggled in idiomas
+  if (containerId === 'idiomas-chips' && chip.dataset.value === 'Otro') {
+    const otroInput = document.getElementById('idioma-otro');
+    const show = chip.classList.contains('selected');
+    otroInput.classList.toggle('show', show);
+    if (!show) otroInput.value = '';
+  }
 }
 
 function addTituloItem() {
@@ -767,6 +785,10 @@ function validateStep(step) {
   }
   if (step === 2) {
     fieldErr('perfil', 'err-perfil', v => v.length > 20);
+    const idiomasSelected = document.querySelectorAll('#idiomas-chips .chip.selected').length;
+    const otroChip  = document.querySelector('#idiomas-chips .chip[data-value="Otro"]');
+    const otroOk    = !otroChip.classList.contains('selected') || document.getElementById('idioma-otro').value.trim().length > 0;
+    showErr('err-idiomas', idiomasSelected === 0 || !otroOk);
   }
   if (step === 3) {
     const tRows = [...document.querySelectorAll('#titulos-list .titulo-row')];
@@ -835,6 +857,12 @@ function collectData() {
     [...document.querySelectorAll(`#${id} .chip.selected`)].map(c => c.dataset.value);
   const getBullets = (id) =>
     [...document.querySelectorAll(`#${id} input`)].map(i => i.value.trim()).filter(Boolean);
+  const getIdiomas = () => {
+    const otro = document.getElementById('idioma-otro').value.trim();
+    return getChips('idiomas-chips')
+      .map(v => v === 'Otro' ? otro : v)
+      .filter(Boolean);
+  };
 
   return {
     nombre:          document.getElementById('nombre').value.trim(),
@@ -844,6 +872,7 @@ function collectData() {
     paisResidencia:  document.getElementById('pais-residencia').value.trim(),
     linkedin:  document.getElementById('linkedin').value.trim(),
     perfil:    document.getElementById('perfil').value.trim(),
+    idiomas:   getIdiomas(),
     titulos:   [...document.querySelectorAll('#titulos-list .titulo-row')].map(row => {
       const ins = row.querySelectorAll('input');
       const t = ins[0].value.trim(), i = ins[1].value.trim(), y = ins[2].value.trim();
@@ -967,6 +996,9 @@ async function generatePDF() {
   sectionTitle('Perfil Profesional');
   bodyText(data.perfil);
 
+  sectionTitle('Idiomas');
+  bodyText(data.idiomas.join('  ·  '));
+
   sectionTitle('Títulos y Certificaciones Académicas');
   data.titulos.forEach(t => bullet(t));
 
@@ -1022,6 +1054,7 @@ async function sendToAppsScript() {
 /* ── BOOTSTRAP ── */
 updateProgressBar(1);
 buildWhatsappCodes();
+buildChips('idiomas-chips',   IDIOMAS_OPTS,   null);
 buildChips('expertis-chips',  EXPERTIS_OPTS,  7);
 buildChips('industria-chips', INDUSTRIA_OPTS, null);
 buildChips('cargos-chips',    CARGOS_OPTS,    null);
